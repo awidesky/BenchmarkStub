@@ -31,6 +31,7 @@
 
 package com.awidesky;
 
+import java.util.Random;
 import java.util.concurrent.TimeUnit;
 
 import org.openjdk.jmh.annotations.Benchmark;
@@ -51,8 +52,8 @@ import org.openjdk.jmh.infra.Blackhole;
  * mvn archetype:generate -DinteractiveMode=false -DarchetypeGroupId=org.openjdk.jmh -DarchetypeArtifactId=jmh-java-benchmark-archetype -DgroupId=com.awidesky -DartifactId=BenchmarkStub -Dversion=1.0
  * */
 
-@Warmup(iterations = 3) 		// Warmup Iteration = 3
-@Measurement(iterations = 5)
+@Warmup(iterations = 2) 		// Warmup Iteration = 3
+@Measurement(iterations = 3)
 
 @BenchmarkMode(Mode.AverageTime)
 @OutputTimeUnit(TimeUnit.MILLISECONDS)
@@ -63,14 +64,39 @@ public class MyBenchmark {
     @Param({ "10000000" })
     private int N;
 
+    private Random r;
     @Setup(Level.Trial)
     public void setup() {
         //setup
+    	r = new Random();
     }
 	 
     @Benchmark
     public void test(Blackhole bh) {
     	//benchmark
+		for (int i = 0; i < N; i++) {
+			double t = Math.random();
+			double a = r.nextDouble();
+			double v = a * t;
+			double b = 0.5 * a * t * t + v * t;
+			bh.consume(b);
+		}
+    }
+    /* in my notebook
+    Benchmark               (N)  Mode  Cnt    Score    Error  Units
+    MyBenchmark.test   10000000  avgt    6  463.524 ± 17.222  ms/op
+    MyBenchmark.test2  10000000  avgt    6  435.180 ± 27.669  ms/op
+    */
+    @Benchmark
+    public void test2(Blackhole bh) {
+    	//benchmark
+		for (int i = 0; i < N; i++) {
+			double t = Math.random();
+			double a = r.nextDouble();
+			double v = a * t;
+			double b =  v * t;
+			bh.consume(b);
+		}
     }
     
 
