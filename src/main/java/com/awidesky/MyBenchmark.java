@@ -31,7 +31,14 @@
 
 package com.awidesky;
 
+import java.io.File;
+import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.nio.channels.FileChannel;
+import java.nio.file.StandardOpenOption;
 import java.util.concurrent.TimeUnit;
+import java.util.zip.Adler32;
+import java.util.zip.CRC32;
 
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
@@ -51,8 +58,8 @@ import org.openjdk.jmh.infra.Blackhole;
  * mvn archetype:generate -DinteractiveMode=false -DarchetypeGroupId=org.openjdk.jmh -DarchetypeArtifactId=jmh-java-benchmark-archetype -DgroupId=com.awidesky -DartifactId=BenchmarkStub -Dversion=1.0
  * */
 
-@Warmup(iterations = 3) 		// Warmup Iteration = 3
-@Measurement(iterations = 5)
+@Warmup(iterations = 0) 		// Warmup Iteration = 2
+@Measurement(iterations = 1)
 
 @BenchmarkMode(Mode.AverageTime)
 @OutputTimeUnit(TimeUnit.MILLISECONDS)
@@ -60,18 +67,63 @@ import org.openjdk.jmh.infra.Blackhole;
 @Fork(value = 2)
 public class MyBenchmark {
 
-    @Param({ "10000000" })
-    private int N;
+	/**
+	 * 
+	 * Benchmark            (N)  Mode  Cnt       Score         Error  Units
+	 * MyBenchmark.adler32    5  avgt    4  190133.821 ±± 1351327.724  ms/op
+	 * MyBenchmark.crc32      5  avgt    4  174584.636 ±± 1062065.076  ms/op
+	 * */
 
+	@Param({"4096",	"8192",	"16384", "32768"})
+	public int bufSize;
+	
+    private File f = new File("C:\\Users\\Eugene Hong\\Videos\\영화\\존윅_NonDRM_[FHD].mp4");
+    		
     @Setup(Level.Trial)
     public void setup() {
         //setup
     }
 	 
     @Benchmark
-    public void test(Blackhole bh) {
-    	//benchmark
+    public void adler32(Blackhole bh) {
+		Adler32 ad = new Adler32();
+		
+		try (FileChannel channel = FileChannel.open(f.toPath(), StandardOpenOption.READ)) {
+	         ByteBuffer byteBuffer = ByteBuffer.allocateDirect(bufSize);
+
+	         while(channel.read(byteBuffer) != -1) {
+	        	 byteBuffer.flip();
+	        	 while(byteBuffer.hasRemaining())
+	        		 ad.update(byteBuffer);
+	        	 byteBuffer.clear();
+	         }
+
+	      } catch (IOException e) {
+	         e.printStackTrace();
+	      }
+
+		bh.consume(Long.toString(ad.getValue()));
     }
     
+    @Benchmark
+    public void crc32(Blackhole bh) {
+		CRC32 cr = new CRC32();
+		
+		try (FileChannel channel = FileChannel.open(f.toPath(), StandardOpenOption.READ)) {
+	         ByteBuffer byteBuffer = ByteBuffer.allocateDirect(bufSize);
+
+	         while(channel.read(byteBuffer) != -1) {
+	        	 byteBuffer.flip();
+	        	 while(byteBuffer.hasRemaining())
+	        		 cr.update(byteBuffer);
+	        	 byteBuffer.clear();
+	         }
+
+	      } catch (IOException e) {
+	         e.printStackTrace();
+	      }
+
+		bh.consume(Long.toString(cr.getValue()));
+    }
 
 }
