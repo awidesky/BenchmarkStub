@@ -31,6 +31,8 @@
 
 package com.awidesky;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 import org.openjdk.jmh.annotations.Benchmark;
@@ -49,9 +51,21 @@ import org.openjdk.jmh.infra.Blackhole;
 
 /*
  * mvn archetype:generate -DinteractiveMode=false -DarchetypeGroupId=org.openjdk.jmh -DarchetypeArtifactId=jmh-java-benchmark-archetype -DgroupId=com.awidesky -DartifactId=BenchmarkStub -Dversion=1.0
+ *
+ * 
+ * Step 1: build Maven project
+ *  1. Right click on project,
+ *  2. Select Run As,
+ *  3. Select Maven Build and specify goals as clean install
+ * 
+ * Step 2: run tests
+ * 1. Right click on project,
+ * 2. Select Run As,
+ * 3. Select Java Application and choose either Main - org.openjdk.jmh or the main you created
+ * 
  * */
 
-@Warmup(iterations = 3) 		// Warmup Iteration = 3
+@Warmup(iterations = 2) 		// Warmup Iteration = 3
 @Measurement(iterations = 5)
 
 @BenchmarkMode(Mode.AverageTime)
@@ -60,18 +74,72 @@ import org.openjdk.jmh.infra.Blackhole;
 @Fork(value = 2)
 public class MyBenchmark {
 
-    @Param({ "10000000" })
+    @Param({ "10000" })
     private int N;
+    List<User> users = new ArrayList<>();
 
     @Setup(Level.Trial)
     public void setup() {
-        //setup
+    	for(int i = 0; i < N; i++){
+    	    User user = new User()
+    	            .setId(i)
+    	            .setName(i+"name")
+    	            .setEmailAddress("test"+i+"gmail.com")
+    	            .setNumber(i+10)
+    	            .setVerified(i % 2 == 0 ? true : false);
+    	    users.add(user);
+    	}
     }
 	 
     @Benchmark
-    public void test(Blackhole bh) {
-    	//benchmark
+    public void sequentialCheck(Blackhole bh) {
+    	users.stream().parallel()
+		.filter(user -> !user.isVerified())
+		.forEach(bh::consume);
     }
     
+    
+    @Benchmark
+    public void parallelCheck(Blackhole bh) {
+    	users.stream()
+    	.filter(user -> !user.isVerified())
+    	.forEach(bh::consume);
+    }
 
+    /*
+    @Benchmark
+	public void sequentialToList(Blackhole bh) {
+		bh.consume(users.stream().filter(user -> !user.isVerified()).map(user -> user.getNumber())
+				.collect(Collectors.toList()));
+	}
+    
+    
+    @Benchmark
+    public void parallelToList(Blackhole bh) {
+    	bh.consume(users.stream().filter(user -> !user.isVerified()).map(user -> user.getNumber())
+				.collect(Collectors.toList()));
+    }
+    */
+}
+
+class User {
+
+	private int id;
+	private String name;
+	private String addr;
+	private int num;
+	private boolean veri;
+	
+	public User setId(int i) { id = i; return this; }
+	public User setName(String n) { name = n; return this; }
+	public User setEmailAddress(String a) { addr = a; return this; }
+	public User setNumber(int i) { num = i; return this; }
+	public User setVerified(boolean b) { veri = b; return this; }
+
+	public boolean isVerified() { return veri; }
+	public int getNumber() { return num; }
+	
+	@Override
+	public String toString() { return id + " " + name + " " + addr + " " + num + " " + veri; }
+	
 }
