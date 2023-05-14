@@ -43,7 +43,6 @@ import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
@@ -78,7 +77,7 @@ import org.openjdk.jmh.infra.Blackhole;
  * */
 
 @Warmup(iterations = 2) // Warm-up Iteration
-@Measurement(iterations = 3)
+@Measurement(iterations = 4)
 
 @BenchmarkMode(Mode.AverageTime)
 @OutputTimeUnit(TimeUnit.MILLISECONDS)
@@ -96,10 +95,14 @@ public class MyBenchmark {
     @Setup(Level.Trial)
     public void setup() throws IOException {
     	System.out.println("\n\tmaking dummy file...");
-    	//from = Files.createTempFile("from", ".bin");
-    	//to = Files.createTempFile("to", ".bin");
-    	from = Paths.get("C:\\Users\\CKIRUser\\Documents\\aa", "from.bin");
-    	to = Paths.get("C:\\Users\\CKIRUser\\Documents\\aa", "to.bin");
+    	from = Files.createTempFile("from", ".bin");
+    	to = Files.createTempFile("to", ".bin");
+    	//from = Paths.get("C:\\Users\\CKIRUser\\Documents\\aa", "from.bin");
+    	//to = Paths.get("C:\\Users\\CKIRUser\\Documents\\aa", "to.bin");
+    	
+    	from.toFile().deleteOnExit();
+    	to.toFile().deleteOnExit();
+    	
     	Random r = new Random();
     	byte[] buf = new byte[64 * 1024];
     	int totalwrite = 0;
