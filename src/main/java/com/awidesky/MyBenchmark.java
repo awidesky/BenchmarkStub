@@ -31,6 +31,21 @@
 
 package com.awidesky;
 
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.nio.ByteBuffer;
+import java.nio.channels.Channels;
+import java.nio.channels.FileChannel;
+import java.nio.channels.ReadableByteChannel;
+import java.nio.channels.WritableByteChannel;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
+import java.util.Random;
 import java.util.concurrent.TimeUnit;
 
 import org.openjdk.jmh.annotations.Benchmark;
@@ -40,7 +55,6 @@ import org.openjdk.jmh.annotations.Level;
 import org.openjdk.jmh.annotations.Measurement;
 import org.openjdk.jmh.annotations.Mode;
 import org.openjdk.jmh.annotations.OutputTimeUnit;
-import org.openjdk.jmh.annotations.Param;
 import org.openjdk.jmh.annotations.Scope;
 import org.openjdk.jmh.annotations.Setup;
 import org.openjdk.jmh.annotations.State;
@@ -63,27 +77,148 @@ import org.openjdk.jmh.infra.Blackhole;
  * 
  * */
 
-@Warmup(iterations = 3) 		// Warmup Iteration = 3
-@Measurement(iterations = 5)
+@Warmup(iterations = 2) // Warm-up Iteration
+@Measurement(iterations = 3)
 
 @BenchmarkMode(Mode.AverageTime)
 @OutputTimeUnit(TimeUnit.MILLISECONDS)
 @State(Scope.Thread)
-@Fork(value = 2)
+@Fork(value = 1)
+//hongsungmin made
 public class MyBenchmark {
 
-    @Param({ "10000000" })
-    private int N;
+	private static Path from;
+	private static Path to;
+	
+	private static final int FROMFILESIZE = 1024 * 1024 * 1024;
+	private static final int BUFFERSIZE = 32 * 1024;
 
     @Setup(Level.Trial)
-    public void setup() {
-        //setup
+    public void setup() throws IOException {
+    	System.out.println("\n\tmaking dummy file...");
+    	//from = Files.createTempFile("from", ".bin");
+    	//to = Files.createTempFile("to", ".bin");
+    	from = Paths.get("C:\\Users\\CKIRUser\\Documents\\aa", "from.bin");
+    	to = Paths.get("C:\\Users\\CKIRUser\\Documents\\aa", "to.bin");
+    	Random r = new Random();
+    	byte[] buf = new byte[64 * 1024];
+    	int totalwrite = 0;
+		try (FileOutputStream fo = new FileOutputStream(from.toFile());) {
+			while(totalwrite < FROMFILESIZE) {
+				r.nextBytes(buf);
+				fo.write(buf);
+				totalwrite += buf.length;
+			}
+			
+		}
+		System.out.println("\tdummy file size : " + formatFileSize(Files.size(from)));
     }
-	 
+    
+    @Setup(Level.Iteration)
+    public void makeTo() throws IOException {
+		Files.deleteIfExists(to);
+		if(Files.notExists(to)) Files.createFile(to);
+    }
+
     @Benchmark
-    public void test(Blackhole bh) {
-    	//benchmark
+	public void streamAsStream(Blackhole bh) throws IOException {
+		try (FileInputStream fi = new FileInputStream(from.toFile());
+				FileOutputStream fo = new FileOutputStream(to.toFile());) {
+			byte[] buf = new byte[BUFFERSIZE];
+
+			while (streamWrite(fo, buf, streamRead(fi, buf)));
+		}
+		assert(Files.size(from) == Files.size(to));
+	}
+    
+    @Benchmark
+    public void streamAsChannel(Blackhole bh) throws IOException {
+    	try (FileInputStream i = new FileInputStream(from.toFile());
+				FileOutputStream o = new FileOutputStream(to.toFile());
+    			FileChannel fi = i.getChannel();
+				FileChannel fo = o.getChannel();) {
+			ByteBuffer buf = ByteBuffer.allocate(BUFFERSIZE);
+
+			do {
+				channelRead(fi, buf);
+			} while (channelWrite(fo, buf));
+		}
+    	assert(Files.size(from) == Files.size(to));
+    }
+    
+    @Benchmark
+    public void channelAsStream(Blackhole bh) throws IOException {
+    	try (InputStream fi = Channels.newInputStream(FileChannel.open(from, StandardOpenOption.READ));
+    			OutputStream fo = Channels.newOutputStream(FileChannel.open(to, StandardOpenOption.WRITE));) {
+    		byte[] buf = new byte[BUFFERSIZE];
+
+			while (streamWrite(fo, buf, streamRead(fi, buf)));
+		}
+    	assert(Files.size(from) == Files.size(to));
+    }
+    
+    @Benchmark
+    public void channelAsChannel(Blackhole bh) throws IOException {
+    	try (FileChannel fi = FileChannel.open(from, StandardOpenOption.READ);
+				FileChannel fo = FileChannel.open(to, StandardOpenOption.WRITE);) {
+			ByteBuffer buf = ByteBuffer.allocate(BUFFERSIZE);
+
+			do {
+				channelRead(fi, buf);
+			} while (channelWrite(fo, buf));
+		}
+    	assert(Files.size(from) == Files.size(to));
     }
     
 
+    private static boolean streamWrite(OutputStream fo, byte[] buffer, int len) throws IOException {
+    	if(len == -1) return false;
+    	fo.write(buffer, 0, len);
+    	//System.out.println("write : " + len);
+    	return true;
+    }
+    private static boolean channelWrite(WritableByteChannel ch, ByteBuffer buffer) throws IOException {
+    	if(!buffer.hasRemaining()) return false;
+    	while(buffer.hasRemaining()) ch.write(buffer);
+    	buffer.clear();
+    	return true;
+    }
+    private static int streamRead(InputStream fi, byte[] buffer) throws IOException {
+    	int totalread = 0;
+    	int nowread = 0;
+    	do {
+    		nowread = fi.read(buffer, totalread, buffer.length - totalread);
+    		if(nowread == -1) {
+    			if(totalread == 0) totalread = -1;
+    			break;
+    		}
+    		totalread += nowread;
+    	} while (totalread != buffer.length);
+    	//System.out.println("totalread : " + totalread);
+    	return totalread;
+    }
+    private static void channelRead(ReadableByteChannel ch, ByteBuffer buffer) throws IOException {
+    	while(buffer.hasRemaining() && ch.read(buffer) != -1);
+    	buffer.flip();
+    }
+    
+	private static String formatFileSize(long fileSize) {
+		
+		if(fileSize == 0L) return "0.00byte";
+		
+		switch ((int)(Math.log(fileSize) / Math.log(1024))) {
+		
+		case 0:
+			return String.format("%d", fileSize) + "byte";
+		case 1:
+			return String.format("%.2f", fileSize / 1024.0) + "KB";
+		case 2:
+			return String.format("%.2f", fileSize / (1024.0 * 1024)) + "MB";
+		case 3:
+			return String.format("%.2f", fileSize / (1024.0 * 1024 * 1024)) + "GB";
+		}
+		return String.format("%.2f", fileSize / (1024.0 * 1024 * 1024 * 1024)) + "TB";
+		
+	}
+	
 }
