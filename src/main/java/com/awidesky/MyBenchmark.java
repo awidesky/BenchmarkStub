@@ -225,3 +225,19 @@ public class MyBenchmark {
 	}
 	
 }
+
+
+/*
+Benchmark                     Mode  Cnt      Score       Error  Units
+MyBenchmark.channelAsChannel  avgt    4  10642.582 ± 11668.644  ms/op
+MyBenchmark.channelAsStream   avgt    4  10308.973 ± 10001.679  ms/op
+MyBenchmark.streamAsChannel   avgt    4  11097.935 ±  7846.946  ms/op
+MyBenchmark.streamAsStream    avgt    4   9437.627 ±  4752.515  ms/op
+ 
+ 
+Benchmark                     Mode  Cnt      Score       Error  Units
+MyBenchmark.channelAsChannel  avgt    4   8878.731 ± 12772.751  ms/op
+MyBenchmark.channelAsStream   avgt    4  10026.648 ±  6410.937  ms/op
+MyBenchmark.streamAsChannel   avgt    4   9055.661 ±  4374.498  ms/op
+MyBenchmark.streamAsStream    avgt    4   8914.932 ±  7929.816  ms/op
+ */
