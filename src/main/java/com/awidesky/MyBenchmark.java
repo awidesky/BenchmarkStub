@@ -32,28 +32,26 @@
 
 package com.awidesky;
 
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.util.HexFormat;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
 
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.Fork;
+import org.openjdk.jmh.annotations.Level;
 import org.openjdk.jmh.annotations.Measurement;
 import org.openjdk.jmh.annotations.Mode;
 import org.openjdk.jmh.annotations.OutputTimeUnit;
 import org.openjdk.jmh.annotations.Param;
 import org.openjdk.jmh.annotations.Scope;
+import org.openjdk.jmh.annotations.Setup;
 import org.openjdk.jmh.annotations.State;
 import org.openjdk.jmh.annotations.Warmup;
 import org.openjdk.jmh.infra.Blackhole;
 
-import io.github.awidesky.jCipherUtil.CipherUtil;
-import io.github.awidesky.jCipherUtil.cipher.symmetric.SymmetricCipherUtil;
 import io.github.awidesky.jCipherUtil.cipher.symmetric.aes.AESKeySize;
-import io.github.awidesky.jCipherUtil.cipher.symmetric.aes.AES_ECBCipherUtil;
+import io.github.awidesky.jCipherUtil.cipher.symmetric.aes.AES_GCMCipherUtil;
+import io.github.awidesky.jCipherUtil.messageInterface.InPut;
 
 /*
  * mvn archetype:generate -DinteractiveMode=false -DarchetypeGroupId=org.openjdk.jmh -DarchetypeArtifactId=jmh-java-benchmark-archetype -DgroupId=com.awidesky -DartifactId=BenchmarkStub -Dversion=1.0
@@ -71,64 +69,54 @@ import io.github.awidesky.jCipherUtil.cipher.symmetric.aes.AES_ECBCipherUtil;
  * 
  * */
 
-@Warmup(iterations = 2)
-@Measurement(iterations = 5)
+@Warmup(iterations = 1)
+@Measurement(iterations = 2)
 
 @BenchmarkMode(Mode.AverageTime)
 @OutputTimeUnit(TimeUnit.MILLISECONDS)
 @State(Scope.Thread)
 @Fork(value = 1)
 public class MyBenchmark {
+    
+    @Param({ "128", "256", "512", "1024", "2048", "4096", "8192" })
+    private int BUFSIZE;
 
-    @Param({ "100" })
-    private int N;
-
-    @Benchmark
-    public void test_Function(Blackhole bh) throws Exception {
-    	byte[] key = new byte[1024];
-    	new Random().nextBytes(key);
-    	SymmetricCipherUtil cipher = new AES_ECBCipherUtil.Builder(key, AESKeySize.SIZE_256).build();
-    	var enc = cipher.getCipherEngineFUNC(CipherUtil.CipherMode.ENCRYPT_MODE);
-    	var dec = cipher.getCipherEngineFUNC(CipherUtil.CipherMode.DECRYPT_MODE);
-    	byte[] b = new byte[32 * 1024];
-    	Random r = new Random();
-    	for(int i = 0; i < N; i++) {
-    		r.nextBytes(b);
-    		byte[] encrypted = enc.doFinal(b);
-			byte[] decrypted = dec.doFinal(encrypted);
-			String e = hashPlain(b);
-			String d = hashPlain(decrypted);
-			if(!e.equals(d)) throw new Exception("wrong!!\n" + e + "\n" + d);
-    	}
-    }
-    @Benchmark
-    public void test_If(Blackhole bh) throws Exception {
-    	byte[] key = new byte[1024];
-    	new Random().nextBytes(key);
-    	SymmetricCipherUtil cipher = new AES_ECBCipherUtil.Builder(key, AESKeySize.SIZE_256).build();
-    	var enc = cipher.getCipherEngineIF(CipherUtil.CipherMode.ENCRYPT_MODE);
-    	var dec = cipher.getCipherEngineIF(CipherUtil.CipherMode.DECRYPT_MODE);
-    	byte[] b = new byte[32 * 1024];
-    	Random r = new Random();
-    	for(int i = 0; i < N; i++) {
-    		r.nextBytes(b);
-    		byte[] encrypted = enc.doFinal(b);
-			byte[] decrypted = dec.doFinal(encrypted);
-			String e = hashPlain(b);
-			String d = hashPlain(decrypted);
-			if(!e.equals(d)) throw new Exception("wrong!!\n" + e + "\n" + d);
-    	}
+    private static byte[] plain = new byte[32* 1024 * 1024];
+    private static byte[] encrypted;
+    
+    @Setup(Level.Trial)
+    public static void genData() {
+    	new Random().nextBytes(plain);
+    	encrypted = new AES_GCMCipherUtil.Builder("Hello, World!".toCharArray(), AESKeySize.SIZE_256).build().encryptToSingleBuffer(InPut.from(plain));
     }
     
+    @Benchmark
+    public void encrypt(Blackhole bh) throws Exception {
+    	bh.consume(new AES_GCMCipherUtil.Builder("Hello, World!".toCharArray(), AESKeySize.SIZE_256).bufferSize(BUFSIZE).build().encryptToSingleBuffer(InPut.from(plain)));
+    }
+    @Benchmark
+    public void decrypt(Blackhole bh) throws Exception {
+    	bh.consume(new AES_GCMCipherUtil.Builder("Hello, World!".toCharArray(), AESKeySize.SIZE_256).bufferSize(BUFSIZE).build().decryptToSingleBuffer(InPut.from(encrypted)));
+    }
     
-	public static String hashPlain(byte[] is) {
-		MessageDigest digest;
-		try {
-			digest = MessageDigest.getInstance("SHA-512");
-			return HexFormat.of().formatHex(digest.digest(is));
-		} catch (NoSuchAlgorithmException e) {
-			e.printStackTrace();
-			return null;
-		}
-	}
 }
+/*
+
+Benchmark            (BUFSIZE)  Mode  Cnt     Score   Error  Units
+MyBenchmark.decrypt        128  avgt    2  1384.701          ms/op
+MyBenchmark.decrypt        256  avgt    2  1404.861          ms/op
+MyBenchmark.decrypt        512  avgt    2  1311.097          ms/op
+MyBenchmark.decrypt       1024  avgt    2  1325.848          ms/op
+MyBenchmark.decrypt       2048  avgt    2  1330.148          ms/op
+MyBenchmark.decrypt       4096  avgt    2  1285.562          ms/op
+MyBenchmark.decrypt       8192  avgt    2  1236.253          ms/op
+
+MyBenchmark.encrypt        128  avgt    2   802.458          ms/op
+MyBenchmark.encrypt        256  avgt    2   809.533          ms/op
+MyBenchmark.encrypt        512  avgt    2   824.541          ms/op
+MyBenchmark.encrypt       1024  avgt    2   828.644          ms/op
+MyBenchmark.encrypt       2048  avgt    2   783.131          ms/op
+MyBenchmark.encrypt       4096  avgt    2   776.425          ms/op
+MyBenchmark.encrypt       8192  avgt    2   776.080          ms/op
+
+*/
