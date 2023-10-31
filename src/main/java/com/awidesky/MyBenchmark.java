@@ -81,7 +81,7 @@ public class MyBenchmark {
     @Param({ "128", "256", "512", "1024", "2048", "4096", "8192" })
     private int BUFSIZE;
 
-    private static byte[] plain = new byte[32* 1024 * 1024];
+    private static byte[] plain = new byte[32* 1024 * 1024]; // TODO : in file
     private static byte[] encrypted;
     
     @Setup(Level.Trial)
@@ -102,6 +102,7 @@ public class MyBenchmark {
 }
 /*
 
+i5 8400 (heap data)
 Benchmark            (BUFSIZE)  Mode  Cnt     Score   Error  Units
 MyBenchmark.decrypt        128  avgt    2  1384.701          ms/op
 MyBenchmark.decrypt        256  avgt    2  1404.861          ms/op
@@ -119,4 +120,21 @@ MyBenchmark.encrypt       2048  avgt    2   783.131          ms/op
 MyBenchmark.encrypt       4096  avgt    2   776.425          ms/op
 MyBenchmark.encrypt       8192  avgt    2   776.080          ms/op
 
+M2 mac (heap data)
+Benchmark            (BUFSIZE)  Mode  Cnt     Score   Error  Units
+MyBenchmark.decrypt        128  avgt    2  2590.413          ms/op
+MyBenchmark.decrypt        256  avgt    2  2879.331          ms/op
+MyBenchmark.decrypt        512  avgt    2  2560.454          ms/op
+MyBenchmark.decrypt       1024  avgt    2  2514.228          ms/op
+MyBenchmark.decrypt       2048  avgt    2  2916.379          ms/op
+MyBenchmark.decrypt       4096  avgt    2  2834.329          ms/op
+MyBenchmark.decrypt       8192  avgt    2  2883.208          ms/op
+
+MyBenchmark.encrypt        128  avgt    2  2632.838          ms/op
+MyBenchmark.encrypt        256  avgt    2  2769.748          ms/op
+MyBenchmark.encrypt        512  avgt    2  2638.438          ms/op
+MyBenchmark.encrypt       1024  avgt    2  2593.194          ms/op
+MyBenchmark.encrypt       2048  avgt    2  2670.498          ms/op
+MyBenchmark.encrypt       4096  avgt    2  2575.861          ms/op
+MyBenchmark.encrypt       8192  avgt    2  2587.340          ms/op
 */
