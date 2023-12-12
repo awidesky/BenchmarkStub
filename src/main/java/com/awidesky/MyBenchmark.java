@@ -32,6 +32,10 @@
 
 package com.awidesky;
 
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Random;
 import java.util.concurrent.TimeUnit;
 
 import org.openjdk.jmh.annotations.Benchmark;
@@ -64,8 +68,8 @@ import org.openjdk.jmh.infra.Blackhole;
  * 
  * */
 
-@Warmup(iterations = 3) 		// Warmup Iteration = 3
-@Measurement(iterations = 5)
+@Warmup(iterations = 2) 		// Warmup Iteration = 2
+@Measurement(iterations = 3)
 
 @BenchmarkMode(Mode.AverageTime)
 @OutputTimeUnit(TimeUnit.MILLISECONDS)
@@ -73,18 +77,50 @@ import org.openjdk.jmh.infra.Blackhole;
 @Fork(value = 2)
 public class MyBenchmark {
 
-    @Param({ "10000000" })
+    @Param({ "100000" })
     private int N;
+    
+    @Param({ "ARRAYLIST", "LINKEDLIST" })
+    private Lists listSupp;
 
+    ArrayList<Integer> list = new ArrayList<Integer>(N);
+
+	private final Comparator<Integer> comp = new Comparator<Integer>() {
+		@Override
+		public int compare(Integer o1, Integer o2) {
+			return o1 > o2 ? 1 : (o1 < o2) ? -1 : 0;
+		}
+	};
+    
     @Setup(Level.Trial)
     public void setup() {
-        //setup
+    	new Random().ints(N).forEach(list::add);
     }
 	 
     @Benchmark
-    public void test(Blackhole bh) {
-    	//benchmark
+    public void sortAfter(Blackhole bh) {
+    	List<Integer> l = listSupp.generate();
+    	for(int i : list) l.add(i);
+    	list.sort(comp);
+    	list.forEach(bh::consume);
     }
     
-
+    @Benchmark
+    public void sortOnline(Blackhole bh) {
+    	List<Integer> l = listSupp.generate();
+    	for(int i : list) {
+    		int s = l.size();
+    		boolean inserted = false;
+    		for(int j = 0; j < s; j++) {
+    			if(l.get(j) > i) {
+    				l.add(j, i);
+    				inserted = true;
+    				break;
+    			}
+    		}
+    		if(!inserted) l.add(i);
+    	}
+    	list.forEach(bh::consume);
+    }
 }
+
